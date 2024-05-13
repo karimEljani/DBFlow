@@ -1,11 +1,13 @@
 package com.ibizabroker.lms.service;
 
 import com.ibizabroker.lms.dao.UsersRepository;
+import com.ibizabroker.lms.entity.Users;
+import com.ibizabroker.lms.exceptions.NotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 @Service
 public class UserService {
@@ -13,15 +15,45 @@ public class UserService {
     @Autowired
     private UsersRepository usersRepository;
 
-    public void deleteUser(Integer userId) {
-        // Logique de suppression de l'utilisateur dans la base de données
-        usersRepository.deleteById(userId);
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    public Users addUser(Users user) {
+        if (user.getRole() == null || user.getRole().isEmpty()) {
+            throw new IllegalArgumentException("The user must have at least one role.");
+        }
+
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        return usersRepository.save(user);
     }
 
-   // public List<String> getRoles() {
-        // Utiliser le référentiel pour récupérer les rôles depuis la base de données
-    //    List<String> roles = usersRepository.getAllRoles();
-    //    return roles;
-    //}
+    public Users getUserById(int id) {
+        return usersRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User with id " + id + " does not exist."));
+    }
 
+    public List<Users> getAllUsers() {
+        return usersRepository.findAll();
+    }
+
+    public Users updateUser(int id, Users userDetails) {
+        Users user = getUserById(id);
+
+        user.setName(userDetails.getName());
+        user.setUsername(userDetails.getUsername());
+        user.setRole(userDetails.getRole());
+
+        return usersRepository.save(user);
+    }
+
+    public void deleteUser(int id) {
+        if (!usersRepository.existsById(id)) {
+            throw new NotFoundException("User with id " + id + " does not exist.");
+        }
+        usersRepository.deleteById(id);
+    }
+
+    public void deleteMultipleUsers(List<Integer> userIds) {
+        usersRepository.deleteAllByUserIdIn(userIds);
+    }
 }
